@@ -245,6 +245,11 @@ class ShortsRepurposingService {
   }
 
   async approve(productionId, clipId, input = {}) {
+    if (process.env.AGENTTUBE_GENERATION_ONLY === 'true') {
+      const error = new Error('Short approval and publishing are disabled in generation-only mode.');
+      error.status = 403;
+      throw error;
+    }
     if (input.confirmed !== true) {
       const error = new Error('Confirm the inherited evidence and Short schedule before approval');
       error.status = 409;

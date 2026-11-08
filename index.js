@@ -92,9 +92,11 @@ class YouTubeAutomationAgent {
       this.logger.info('Loading credentials...');
       this.credentials = new CredentialManager();
       const credentialsValid = await this.credentials.validateAll();
+      const generationOnly = process.env.AGENTTUBE_GENERATION_ONLY === 'true';
+      const generationCredentialsValid = generationOnly && this.credentials.hasAITextProvider();
       this.readiness = new ProductionReadinessService(this.db, this.credentials);
       
-      if (!credentialsValid) {
+      if (!credentialsValid && !generationCredentialsValid) {
         console.log(chalk.yellow('\n⚠️  Some credentials are missing or invalid.'));
         console.log(chalk.yellow('Run: npm run credentials:setup'));
         this.setupRequired = true;
@@ -135,17 +137,22 @@ class YouTubeAutomationAgent {
       // Setup API endpoints
       this.setupAPI();
       
-      // Initialize scheduler
-      this.logger.info('Setting up automation scheduler...');
-      this.scheduler = new DailyAutomation(this.agents, this.db, {
-        generateContent: input => this.queueScheduledContent(input),
-        engagement: this.engagement,
-        experiments: this.experiments
-      });
-      await this.scheduler.initialize();
+      // GitHub Actions workers are ephemeral. Keep the self-hosted scheduler off and
+      // require human review in generation-only mode.
+      if (generationOnly) {
+        this.logger.info('Generation-only mode: internal scheduling is disabled');
+      } else {
+        this.logger.info('Setting up automation scheduler...');
+        this.scheduler = new DailyAutomation(this.agents, this.db, {
+          generateContent: input => this.queueScheduledContent(input),
+          engagement: this.engagement,
+          experiments: this.experiments
+        });
+        await this.scheduler.initialize();
 
-      if (await this.db.getSetting('automation_paused') === 'true') {
-        await this.scheduler.pauseAutomation();
+        if (await this.db.getSetting('automation_paused') === 'true') {
+          await this.scheduler.pauseAutomation();
+        }
       }
       
       this.isInitialized = true;
@@ -1743,6 +1750,11 @@ class YouTubeAutomationAgent {
   }
 
   async approveContent(productionId, input) {
+    if (process.env.AGENTTUBE_GENERATION_ONLY === 'true') {
+      const error = new Error('Approval and publishing are disabled in generation-only mode.');
+      error.status = 403;
+      throw error;
+    }
     const bundle = await this.db.getProductionBundle(productionId);
     if (!bundle) {
       const error = new Error('Content not found');

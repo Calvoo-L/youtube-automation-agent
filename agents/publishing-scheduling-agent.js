@@ -16,6 +16,10 @@ class PublishingSchedulingAgent {
 
   async initialize() {
     this.logger.info('Initializing Publishing & Scheduling Agent...');
+    if (process.env.AGENTTUBE_GENERATION_ONLY === 'true') {
+      this.logger.info('Generation-only mode: YouTube publishing is disabled');
+      return true;
+    }
     await this.setupYouTubeAPI();
     await this.loadPublishQueue();
     return true;
@@ -51,6 +55,11 @@ class PublishingSchedulingAgent {
       }
       if (!await this.isNarrationReady(productionData.assets?.audio)) {
         this.logger.warn(`Not scheduling ${productionData.id}: narration is missing. Regenerate narration or explicitly confirm an intentional silent video.`);
+        return null;
+      }
+
+      if (process.env.AGENTTUBE_GENERATION_ONLY === 'true') {
+        this.logger.info(`Generation-only mode: leaving ${productionData.id} in review without scheduling`);
         return null;
       }
 
@@ -99,6 +108,11 @@ class PublishingSchedulingAgent {
   }
 
   async publishContent(contentId, options = {}) {
+    if (process.env.AGENTTUBE_GENERATION_ONLY === 'true') {
+      const error = new Error('Publishing is disabled in generation-only mode.');
+      error.status = 403;
+      throw error;
+    }
     try {
       let productionBundle = null;
       if (this.db.getLatestReadinessRun) {

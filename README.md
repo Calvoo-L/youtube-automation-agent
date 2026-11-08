@@ -106,6 +106,10 @@ One key gets you started. Pick a text provider in the walkthrough: Gemini, OpenA
 
 Models, keys, env vars, clip limits, and the `.env` essentials are in the [providers guide](docs/providers.md).
 
+## GitHub Actions (generation-only)
+
+This fork includes an optional scheduled workflow for draft generation. It keeps the AgentTube database and media in the GitHub Actions cache, saves each run's generated files as a short-lived artifact, and disables upload and the always-on scheduler in that worker. See the [Spanish setup guide](docs/automatizacion-github-actions.md) for enabling the Gemini secret, running a manual test, and downloading drafts.
+
 ## Automation
 
 The scheduler starts with `npm start` and uses the server's local time.

@@ -36,7 +36,11 @@ class AnalyticsOptimizationAgent {
 
   async initialize() {
     this.logger.info('Initializing Analytics & Optimization Agent...');
-    await this.setupAnalyticsAPI();
+    if (process.env.AGENTTUBE_GENERATION_ONLY !== 'true') {
+      await this.setupAnalyticsAPI();
+    } else {
+      this.logger.info('Generation-only mode: YouTube Analytics is disabled');
+    }
     await this.loadHistoricalData();
     return true;
   }

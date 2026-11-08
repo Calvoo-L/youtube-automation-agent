@@ -12,17 +12,30 @@ const port = '3456';
 const baseUrl = `http://127.0.0.1:${port}`;
 const headers = { 'content-type': 'application/json', 'x-api-key': apiKey };
 
+async function fetchWithTimeout(url, options, timeoutMs) {
+  let timer;
+  try {
+    return await Promise.race([
+      fetch(url, options),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs} ms`)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function fail(message) {
   throw new Error(message);
 }
 
 async function request(route, { method = 'GET', body } = {}) {
-  const response = await fetch(`${baseUrl}${route}`, {
+  const response = await fetchWithTimeout(`${baseUrl}${route}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(30000)
-  });
+    body: body === undefined ? undefined : JSON.stringify(body)
+  }, 30000);
   const text = await response.text();
   let result;
   try {
@@ -39,7 +52,7 @@ async function waitForServer(child, readLog) {
   while (Date.now() < deadline) {
     if (child.exitCode !== null) fail(`AgentTube exited during startup. Recent log: ${readLog()}`);
     try {
-      const response = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      const response = await fetchWithTimeout(`${baseUrl}/health`, {}, 3000);
       if (response.ok) return;
     } catch {
       // The server is still starting.

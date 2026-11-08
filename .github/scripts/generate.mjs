@@ -1,8 +1,10 @@
-const { spawn } = require('node:child_process');
-const crypto = require('node:crypto');
-const fs = require('node:fs/promises');
-const path = require('node:path');
+import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../..');
 const dataRoot = path.join(root, 'data');
 const outputRoot = path.join(root, 'actions-output');

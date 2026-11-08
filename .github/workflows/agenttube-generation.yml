@@ -89,7 +89,7 @@ jobs:
           PRODUCTION_ID: ${{ inputs.production_id }}
           VIDEO_LENGTH: ${{ inputs.length }}
           CREATE_SHORTS: ${{ github.event_name == 'schedule' && 'true' || inputs.create_shorts }}
-        run: node .github/scripts/generate.mjs
+        run: node .github/scripts/generate.cjs
 
       - name: Save AgentTube database and media
         if: success()

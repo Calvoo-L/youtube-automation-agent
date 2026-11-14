@@ -18,38 +18,33 @@ Claude API no crea por sí sola el MP4, las imágenes ni la narración. Para esa
 
 No compartas la clave en el chat ni la subas a GitHub.
 
-## 2. Preparar el proyecto en Windows
+## 2. Descargar y preparar el proyecto en Windows
 
-1. Descarga o actualiza tu fork: [Calvoo-L/youtube-automation-agent](https://github.com/Calvoo-L/youtube-automation-agent).
-2. En la carpeta del proyecto, copia `.env.example` y ponle el nombre `.env`.
-3. Abre `.env` con el Bloc de notas. Añade tu clave y el modelo:
-
-   ```env
-   ANTHROPIC_API_KEY=pega_aqui_tu_clave
-   ANTHROPIC_MODEL=claude-sonnet-5-5
-   CHANNEL_NAME=Tecnología, IA y herramientas digitales
-   TARGET_AUDIENCE=Personas de 16 años en adelante interesadas en tecnología, inteligencia artificial y herramientas digitales
-   DEFAULT_PRIVACY_STATUS=private
-   ```
-
-4. Guarda el archivo. `.env` está excluido de Git para que la clave no se publique junto con el repositorio.
-
-## 3. Configurar el canal y YouTube
-
-En una ventana de PowerShell abierta en la carpeta del proyecto, ejecuta:
+1. Descarga tu fork: [Calvoo-L/youtube-automation-agent](https://github.com/Calvoo-L/youtube-automation-agent).
+2. Abre PowerShell dentro de la carpeta del proyecto.
+3. Instala las dependencias:
 
 ```powershell
 npm install
 npx playwright install chromium
-npm run walkthrough
 ```
 
-En el asistente:
+## 3. Configurar Claude y el canal
 
-- Elige **Anthropic Claude** para texto y pega la clave cuando la pida. La prueba de conexión usa una pequeña llamada a la API.
-- Conecta YouTube si quieres gestionar subidas desde el panel. El asistente te guía para crear las credenciales OAuth de tipo **Desktop app** en Google Cloud.
-- En la configuración del canal, describe el público como personas de 16 años en adelante interesadas en tecnología, IA y herramientas digitales.
-- Deja la privacidad en **private** mientras revisas los primeros resultados.
+Hay dos maneras de guardar la clave; elige solo una:
+
+- **Más sencilla:** ejecuta `npm run walkthrough`. Cuando pregunte por el proveedor de texto, elige **Anthropic Claude**, pega tu clave y confirma que la prueba funcione. El asistente la guarda en `config/credentials.json`, que Git excluye.
+- **Con archivo .env:** copia `.env.example` como `.env` y añade estas líneas. Luego ejecuta el asistente; como ya detectará la clave, responde **No** si pregunta si quieres configurar otro proveedor.
+
+```env
+ANTHROPIC_API_KEY=pega_aqui_tu_clave
+ANTHROPIC_MODEL=claude-sonnet-5-5
+CHANNEL_NAME=Tecnología, IA y herramientas digitales
+TARGET_AUDIENCE=Personas de 16 años en adelante interesadas en tecnología, inteligencia artificial y herramientas digitales
+DEFAULT_PRIVACY_STATUS=private
+```
+
+En el asistente, conecta YouTube si quieres gestionar subidas desde el panel. Te guía para crear credenciales OAuth de tipo **Desktop app** en Google Cloud. Deja la privacidad en **private** mientras revisas los primeros resultados.
 
 ## 4. Abrir el panel y crear un video
 

@@ -8,6 +8,7 @@ Pick one in the walkthrough, or set its key in `.env`. The SDK base URL is confi
 
 | Provider | Models | Key | Env var |
 | --- | --- | --- | --- |
+| **Anthropic Claude (direct API)** | Claude Sonnet 5.5 | [Anthropic Console](https://console.anthropic.com/) | `ANTHROPIC_API_KEY` |
 | **Google Gemini** | Gemini 3.8 Flash, Gemini 4 Argon (paid only), 3.5 Flash-Lite | [AI Studio](https://aistudio.google.com/apikey) | `GEMINI_API_KEY` |
 | **OpenAI** | GPT-6.1 Sol, GPT-6 Astra, GPT-6 Luna | [platform.openai.com](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` |
 | **OpenRouter** | 400+ models through one key; curated defaults are checked against its live catalog | [openrouter.ai](https://openrouter.ai/keys) | `OPENROUTER_API_KEY` |
@@ -17,7 +18,7 @@ Pick one in the walkthrough, or set its key in `.env`. The SDK base URL is confi
 | **DeepSeek** | DeepSeek V4.1 Flash, V4 Pro | [platform.deepseek.com](https://platform.deepseek.com/api_keys) | `DEEPSEEK_API_KEY` |
 | **MiniMax** | MiniMax M3.1 Flash, M3 | [platform.minimax.io](https://platform.minimax.io/user-center/basic-information/interface-key) | `MINIMAX_TEXT_API_KEY` |
 
-Anthropic Claude is available through OpenRouter (`anthropic/claude-fable-5.1`). OpenRouter, Kimi, MiMo, GLM, DeepSeek, and MiniMax cover scripts only. Add a Gemini or OpenAI key for images and narration, or ElevenLabs for narration.
+Direct Anthropic Claude API calls are selected when `ANTHROPIC_API_KEY` is set and take priority over other text-provider keys. The default is `claude-sonnet-5-5`; override it with `ANTHROPIC_MODEL`. Claude API credits are billed separately from Claude.ai subscriptions. Claude handles scripts, planning, and metadata only; it does not create the finished video, images, or narration. Add a separate media provider for those stages. OpenRouter, Kimi, MiMo, GLM, DeepSeek, and MiniMax also cover scripts only.
 
 ## Narration and images
 
@@ -43,8 +44,12 @@ Long videos use hybrid assembly: generated clips for the hook and key sections, 
 `npm run walkthrough` writes your configuration for you. To edit it by hand, copy [`.env.example`](../.env.example) to `.env`. The essentials:
 
 ```env
-# One text provider (see the table above)
-GEMINI_API_KEY=...
+# Claude direct API (usage is billed separately from Claude.ai)
+ANTHROPIC_API_KEY=...
+ANTHROPIC_MODEL=claude-sonnet-5-5
+
+# Or use another text provider
+# GEMINI_API_KEY=...
 
 # Optional: narration, images, and AI video
 # ELEVENLABS_API_KEY=...

@@ -44,6 +44,7 @@ class SystemTest {
       { name: 'API Validation and Security', test: () => this.testAPIValidationAndSecurity() },
       { name: 'Publishing Safety', test: () => this.testPublishingSafety() },
       { name: 'Multi-Provider Credential Validation', test: () => this.testCredentialValidation() },
+      { name: 'Anthropic Claude API Provider', test: () => this.testAnthropicProvider() },
       { name: 'AI Text Service Token Compatibility', test: () => this.testAITextServiceTokenParams() },
       { name: 'Placeholder Scheduling Guard', test: () => this.testPlaceholderSchedulingGuard() },
       { name: 'FFmpeg Resolution', test: () => this.testFFmpegResolution() },
@@ -2641,7 +2642,7 @@ class SystemTest {
     const manager = new CredentialManager();
 
     // Isolate the test from any API keys set in the environment
-    const envKeys = [...Object.values(PROVIDERS).map(p => p.envKey), 'GEMINI_API_KEY', 'MINIMAX_API_KEY'];
+    const envKeys = [...Object.values(PROVIDERS).map(p => p.envKey), 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL', 'MINIMAX_API_KEY'];
     const savedEnv = {};
     for (const key of envKeys) {
       savedEnv[key] = process.env[key];
@@ -2652,6 +2653,11 @@ class SystemTest {
       manager.credentials = { youtube: { client_id: 'x' }, gemini: { apiKey: 'gm-test' } };
       if (manager.getMissingCredentials().length !== 0) {
         throw new Error('Gemini-only configuration was incorrectly reported as missing credentials');
+      }
+
+      manager.credentials = { youtube: { client_id: 'x' }, anthropic: { apiKey: 'sk-ant-test' } };
+      if (manager.getMissingCredentials().length !== 0) {
+        throw new Error('Anthropic configuration was incorrectly reported as missing credentials');
       }
 
       manager.credentials = { youtube: { client_id: 'x' }, aiProvider: { provider: 'openrouter', apiKey: 'sk-or-test' } };
@@ -2698,6 +2704,70 @@ class SystemTest {
     }
 
     this.logger.info('Credential validation test completed successfully');
+  }
+
+  async testAnthropicProvider() {
+    const { AITextService, PROVIDERS, ANTHROPIC_DEFAULT_MODEL } = require('./utils/ai-text-service');
+    const envKeys = [...Object.values(PROVIDERS).map(provider => provider.envKey), 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL'];
+    const savedEnv = {};
+    for (const key of envKeys) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+    const originalFetch = global.fetch;
+
+    try {
+      process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+      let request;
+      global.fetch = async (url, options) => {
+        request = { url, options, body: JSON.parse(options.body) };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ content: [{ type: 'text', text: 'Claude response' }], stop_reason: 'end_turn' })
+        };
+      };
+
+      const service = new AITextService({ gemini: { apiKey: 'ignored-gemini-key' } });
+      if (service.providerName !== 'Anthropic Claude' || service.model !== ANTHROPIC_DEFAULT_MODEL) {
+        throw new Error('ANTHROPIC_API_KEY did not select the Claude provider and default model');
+      }
+      const result = await service.generateText('Test prompt', { maxTokens: 321, temperature: 0.1 });
+      if (result !== 'Claude response') throw new Error('Claude text content was not returned');
+      if (request.url !== 'https://api.anthropic.com/v1/messages') {
+        throw new Error('Claude request used the wrong API endpoint');
+      }
+      if (request.options.headers['x-api-key'] !== 'sk-ant-test' ||
+          request.options.headers['anthropic-version'] !== '2023-06-01') {
+        throw new Error('Claude request is missing required authentication or version headers');
+      }
+      if (request.body.model !== ANTHROPIC_DEFAULT_MODEL || request.body.max_tokens !== 321 ||
+          request.body.messages?.[0]?.content !== 'Test prompt') {
+        throw new Error('Claude request payload did not preserve the model, prompt, and token limit');
+      }
+
+      global.fetch = async () => ({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        json: async () => ({ error: { message: 'rate limit reached' } })
+      });
+      let rateLimitMessage = '';
+      try {
+        await service.generateText('Retry later');
+      } catch (error) {
+        rateLimitMessage = error.message;
+      }
+      if (!/429/.test(rateLimitMessage) || !/rate limit reached/.test(rateLimitMessage)) {
+        throw new Error('Claude API errors do not include the HTTP status and provider message');
+      }
+    } finally {
+      global.fetch = originalFetch;
+      for (const key of envKeys) {
+        if (savedEnv[key] === undefined) delete process.env[key];
+        else process.env[key] = savedEnv[key];
+      }
+    }
   }
 
   async testAITextServiceTokenParams() {

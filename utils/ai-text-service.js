@@ -7,6 +7,7 @@ const GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
 ];
 const GEMINI_DEFAULT_MODEL = GEMINI_MODELS[0];
+const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-5-5';
 // Floor for the single retry after a thinking model exhausts a small budget.
 const GEMINI_THINKING_RETRY_MIN_TOKENS = 1024;
 
@@ -69,6 +70,7 @@ class AITextService {
     this.logger = new Logger('AITextService');
     this.client = null;
     this.gemini = null;
+    this.anthropic = null;
     this.model = null;
     this.providerName = null;
 
@@ -76,6 +78,11 @@ class AITextService {
   }
 
   _init(credentials) {
+    const anthropicKey = credentials.anthropic?.apiKey || process.env.ANTHROPIC_API_KEY;
+    if (anthropicKey) {
+      return this._initAnthropic(anthropicKey, credentials.anthropic?.model || process.env.ANTHROPIC_MODEL);
+    }
+
     const provider = credentials.aiProvider?.provider;
     const apiKey = credentials.aiProvider?.apiKey;
     const model = credentials.aiProvider?.model;
@@ -106,6 +113,13 @@ class AITextService {
     this.logger.info(`${preset.name} initialized (model: ${this.model})`);
   }
 
+  _initAnthropic(apiKey, model) {
+    this.anthropic = { apiKey };
+    this.model = model || ANTHROPIC_DEFAULT_MODEL;
+    this.providerName = 'Anthropic Claude';
+    this.logger.info(`${this.providerName} initialized (model: ${this.model})`);
+  }
+
   _initGemini(apiKey, model) {
     try {
       const { GoogleGenAI } = require('@google/genai');
@@ -122,6 +136,10 @@ class AITextService {
     const model = options.model || this.model;
     const maxTokens = options.maxTokens || 2048;
     const temperature = options.temperature ?? 0.7;
+
+    if (this.anthropic) {
+      return this._generateAnthropicText(prompt, model, maxTokens);
+    }
 
     if (this.gemini) {
       const config = { maxOutputTokens: maxTokens };
@@ -208,6 +226,54 @@ class AITextService {
     throw lastError;
   }
 
+  async _generateAnthropicText(prompt, model, maxTokens) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+    timeout.unref?.();
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': this.anthropic.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }]
+        }),
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = payload?.error?.message || response.statusText || 'No further details';
+        throw new Error(`Anthropic API request failed (${response.status}): ${detail}`);
+      }
+
+      const text = (Array.isArray(payload?.content) ? payload.content : [])
+        .filter(block => block?.type === 'text' && typeof block.text === 'string')
+        .map(block => block.text)
+        .join('\\n')
+        .trim();
+      if (!text) {
+        const reason = payload?.stop_reason === 'max_tokens'
+          ? 'Claude reached the configured output limit before returning text.'
+          : 'Claude returned no text content.';
+        throw new Error(reason);
+      }
+      return text;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Anthropic API request timed out after 120 seconds.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   _hasText(text) {
     return typeof text === 'string' && text.trim().length > 0;
   }
@@ -249,8 +315,8 @@ class AITextService {
   }
 
   isAvailable() {
-    return !!(this.client || this.gemini);
+    return !!(this.client || this.gemini || this.anthropic);
   }
 }
 
-module.exports = { AITextService, PROVIDERS, GEMINI_MODELS, GEMINI_DEFAULT_MODEL };
+module.exports = { AITextService, PROVIDERS, GEMINI_MODELS, GEMINI_DEFAULT_MODEL, ANTHROPIC_DEFAULT_MODEL };

@@ -10,7 +10,8 @@ const {
   AITextService,
   PROVIDERS,
   GEMINI_MODELS,
-  GEMINI_DEFAULT_MODEL
+  GEMINI_DEFAULT_MODEL,
+  ANTHROPIC_DEFAULT_MODEL
 } = require('./utils/ai-text-service');
 const { Database } = require('./database/db');
 const { checkFFmpeg, ffmpegInstallHint } = require('./utils/ffmpeg');
@@ -18,6 +19,23 @@ const { VideoProviderRegistry } = require('./utils/video-providers');
 
 // Everything a beginner needs to know about each provider, in one place
 const AI_PROVIDER_GUIDE = {
+  anthropic: {
+    label: 'Anthropic Claude — paid API usage; text generation only',
+    keyUrl: 'https://console.anthropic.com/',
+    keyHint: 'Anthropic Console API key',
+    instructions: [
+      'Sign in to the Anthropic Console (Claude.ai subscriptions are billed separately)',
+      'Add API credits in Console billing settings',
+      'Create an API key and keep it private'
+    ],
+    models: [ANTHROPIC_DEFAULT_MODEL],
+    defaultModel: ANTHROPIC_DEFAULT_MODEL,
+    covers: 'scripts, planning, and metadata; add a separate media provider for voice, images, or video',
+    save(credentials, apiKey, model) {
+      credentials.anthropic = { apiKey, model };
+    },
+    validationCreds: (apiKey, model) => ({ anthropic: { apiKey, model } })
+  },
   gemini: {
     label: 'Google Gemini — free text/TTS tiers; paid AI images',
     keyUrl: 'https://aistudio.google.com/apikey',
@@ -270,7 +288,7 @@ class SetupWalkthrough {
 
   // ── Step 2: AI provider ────────────────────────────────────────────────
   async stepAIProvider() {
-    this.header(2, 'Your AI provider (writes scripts, makes images & narration)');
+    this.header(2, 'Your text provider (writes scripts and plans videos)');
 
     if (this.cm.hasAITextProvider()) {
       const { redo } = await inquirer.prompt([{
@@ -282,7 +300,8 @@ class SetupWalkthrough {
       if (!redo) return;
     } else {
       console.log(chalk.white('The agent needs one AI service. If you don\'t want to spend money,'));
-      console.log(chalk.white('Google Gemini offers free tiers for supported text and TTS usage.'));
+      console.log(chalk.white('Claude API usage is separate from Claude.ai and requires API credits.'));
+      console.log(chalk.white('Gemini offers free tiers for supported text and TTS usage.'));
       console.log(chalk.white('AI image generation requires paid access; gradient visuals are the fallback.'));
     }
 
@@ -347,7 +366,7 @@ class SetupWalkthrough {
 
   async validateAIKey(guide, apiKey, model) {
     // Temporarily clear provider env keys so the test hits exactly the pasted key
-    const envKeys = [...Object.values(PROVIDERS).map(p => p.envKey), 'GEMINI_API_KEY'];
+    const envKeys = [...Object.values(PROVIDERS).map(p => p.envKey), 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY'];
     const savedEnv = {};
     for (const key of envKeys) {
       savedEnv[key] = process.env[key];

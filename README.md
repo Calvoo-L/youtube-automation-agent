@@ -23,7 +23,7 @@ It researches topics, writes scripts, generates narration and visuals, assembles
 - **Real output only.** Simulated or placeholder media is clearly marked and can never be approved or uploaded.
 - **Self-hosted.** Your keys, media, and channel data stay on your machine.
 - **Learns from evidence, with your sign-off.** Lessons from analytics, retention curves, and comments shape future videos only after you approve them.
-- **Your choice of providers.** Eight text providers or OpenRouter, five AI video providers, or free local slideshow rendering.
+- **Your choice of providers.** Direct Anthropic Claude, Gemini, and several other text providers; five AI video providers; or local slideshow rendering.
 
 ## Quick start
 
@@ -31,7 +31,7 @@ You need:
 
 - Node.js 18.17 or newer
 - A Google account and YouTube Data API credentials ([setup steps](#youtube-credentials))
-- An API key for at least one [text provider](docs/providers.md#text). Gemini has free tiers for text and narration.
+- An API key for at least one [text provider](docs/providers.md#text). Claude API credits are billed separately from Claude.ai subscriptions; Gemini offers free tiers for supported text and narration usage.
 
 ```bash
 git clone https://github.com/darkzOGx/youtube-automation-agent.git
@@ -43,6 +43,8 @@ npm start
 ```
 
 Then open `http://localhost:3456`.
+
+For the private local workflow in Spanish, see the [Claude + AgentTube setup guide](docs/claude-local-studio-es.md).
 
 1. **`npm run walkthrough`** explains each provider choice, tests your keys, and connects your YouTube channel. For a shorter flow, use `npm run setup`. Every setting is documented in [`.env.example`](.env.example).
 2. **Check readiness.** In the dashboard, open **Production readiness** and choose **Run verified check**. It makes small live text and narration requests, checks access to your channel, and builds and decodes a test MP4, without uploading anything.
